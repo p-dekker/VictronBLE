@@ -16,6 +16,8 @@ VictronBLE::VictronBLE()
       scanDuration(5), minIntervalMs(1000), initialized(false)
 #if defined(VICTRON_BACKEND_ESP32)
     , pBLEScan(nullptr), scanCallbackObj(nullptr)
+#elif defined(VICTRON_BACKEND_SAMD_BLE)
+    , scanning(false), lastScanStart(0)
 #endif
 {
     memset(devices, 0, sizeof(devices));
@@ -47,7 +49,7 @@ bool VictronBLE::addDevice(const char* name, const char* mac, const char* hexKey
 
     deviceCount++;
 
-    if (debugEnabled) Serial.printf("[VictronBLE] Added: %s (%s)\n", name, normalizedMAC);
+    if (debugEnabled) VBLE_PRINTF("[VictronBLE] Added: %s (%s)\n", name, normalizedMAC);
     return true;
 }
 
@@ -74,7 +76,7 @@ void VictronBLE::onAdvertisement(const uint8_t* mfgData, size_t len,
 
     DeviceEntry* entry = findDevice(normalizedMAC);
     if (!entry) {
-        if (debugEnabled) Serial.printf("[VictronBLE] Unmonitored Victron: %s\n", normalizedMAC);
+        if (debugEnabled) VBLE_PRINTF("[VictronBLE] Unmonitored Victron: %s\n", normalizedMAC);
         return;
     }
 
@@ -90,7 +92,7 @@ void VictronBLE::onAdvertisement(const uint8_t* mfgData, size_t len,
         return;
     }
 
-    if (debugEnabled) Serial.printf("[VictronBLE] Processing: %s nonce:0x%04X\n",
+    if (debugEnabled) VBLE_PRINTF("[VictronBLE] Processing: %s nonce:0x%04X\n",
                                      entry->device.name, mfg.nonceDataCounter);
 
     if (parseAdvertisement(entry, mfg)) {
@@ -102,7 +104,7 @@ void VictronBLE::onAdvertisement(const uint8_t* mfgData, size_t len,
 
 bool VictronBLE::parseAdvertisement(DeviceEntry* entry, const victronManufacturerData& mfg) {
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] Beacon:0x%02X Record:0x%02X Nonce:0x%04X\n",
+        VBLE_PRINTF("[VictronBLE] Beacon:0x%02X Record:0x%02X Nonce:0x%04X\n",
                       mfg.beaconType, mfg.victronRecordType, mfg.nonceDataCounter);
     }
 
@@ -152,7 +154,7 @@ bool VictronBLE::parseAdvertisement(DeviceEntry* entry, const victronManufacture
             ok = parseACCharger(decrypted, VICTRON_ENCRYPTED_LEN, entry->device.acCharger);
             break;
         default:
-            if (debugEnabled) Serial.printf("[VictronBLE] Unknown type: 0x%02X\n", mfg.victronRecordType);
+            if (debugEnabled) VBLE_PRINTF("[VictronBLE] Unknown type: 0x%02X\n", mfg.victronRecordType);
             return false;
     }
 
@@ -191,7 +193,7 @@ bool VictronBLE::parseSolarCharger(const uint8_t* data, size_t len, VictronSolar
     result.loadCurrent = (loadRaw != 0x1FF) ? loadRaw * 0.1f : 0;
 
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] Solar: %.2fV %.2fA %dW State:%d\n",
+        VBLE_PRINTF("[VictronBLE] Solar: %.2fV %.2fA %dW State:%d\n",
                       result.batteryVoltage, result.batteryCurrent,
                       (int)result.panelPower, result.chargeState);
     }
@@ -232,7 +234,7 @@ bool VictronBLE::parseACCharger(const uint8_t* data, size_t len, VictronACCharge
     result.acCurrent = (acCur != 0x1FF) ? acCur * 0.1f : 0;
 
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] AC Charger: %.2fV %.2fA Temp:%.0fC State:%d\n",
+        VBLE_PRINTF("[VictronBLE] AC Charger: %.2fV %.2fA Temp:%.0fC State:%d\n",
                       result.voltage1, result.current1, result.temperature, result.chargeState);
     }
     return true;
@@ -290,7 +292,7 @@ bool VictronBLE::parseBatteryMonitor(const uint8_t* data, size_t len, VictronBat
     result.soc = soc * 0.1f;
 
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] Battery: %.2fV %.2fA SOC:%.1f%%\n",
+        VBLE_PRINTF("[VictronBLE] Battery: %.2fV %.2fA SOC:%.1f%%\n",
                       result.voltage, result.current, result.soc);
     }
     return true;
@@ -316,7 +318,7 @@ bool VictronBLE::parseInverter(const uint8_t* data, size_t len, VictronInverterD
     result.alarmOverload = (p->alarms & 0x08) != 0;
 
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] Inverter: %.2fV %dW State:%d\n",
+        VBLE_PRINTF("[VictronBLE] Inverter: %.2fV %dW State:%d\n",
                       result.batteryVoltage, (int)result.acPower, result.state);
     }
     return true;
@@ -333,7 +335,7 @@ bool VictronBLE::parseDCDCConverter(const uint8_t* data, size_t len, VictronDCDC
     result.outputCurrent = p->outputCurrent * 0.01f;
 
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] DC-DC: In=%.2fV Out=%.2fV %.2fA\n",
+        VBLE_PRINTF("[VictronBLE] DC-DC: In=%.2fV Out=%.2fV %.2fA\n",
                       result.inputVoltage, result.outputVoltage, result.outputCurrent);
     }
     return true;
