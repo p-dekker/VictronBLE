@@ -55,7 +55,7 @@ void VictronBLEAdvertisedDeviceCallbacks::onResult(BLEAdvertisedDevice advertise
 void VictronBLE::processDevice(BLEAdvertisedDevice& advertisedDevice) {
     // Debug: print every BLE device seen (before any filtering)
     if (debugEnabled) {
-        Serial.printf("[VictronBLE] MAC=%-17s  RSSI=%-4d  Name=%-20s  ManData=%s\n",
+        VBLE_PRINTF("[VictronBLE] MAC=%-17s  RSSI=%-4d  Name=%-20s  ManData=%s\n",
             advertisedDevice.getAddress().toString().c_str(),
             advertisedDevice.getRSSI(),
             advertisedDevice.haveName() ? advertisedDevice.getName().c_str() : "(none)",

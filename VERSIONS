@@ -1,5 +1,11 @@
 # Version History
 
+## Unreleased
+
+### New
+- Added Arduino MKR WiFi 1010 support through the ArduinoBLE backend.
+- Added SAMD/Atmel SAM PlatformIO metadata and the ArduinoBLE dependency.
+
 ## 0.7.2 (2026-11-11)
 
 ### Fixed

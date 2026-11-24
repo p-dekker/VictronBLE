@@ -8,11 +8,11 @@ v0.7 splits the library into a **dependency-free pure C99 core** (decode + decry
 
 Why another library? Most of the Victron BLE examples are built into other frameworks (e.g. ESPHome) or are locked to a single chip. The goal here is one library that works across ESP32 and nRF52 (and is easy to extend to more), usable standalone or inside ESPHome and other frameworks, with a long-term plan to move others onto it and improve the code with many eyes.
 
-Under Arduino it supports **ESP32** (original, S and C series — tested on older ESP32, ESP32-S3 and ESP32-C3) and **nRF52840** (Adafruit/Seeed Bluefruit core, e.g. Seeed XIAO nRF52840). Under **Zephyr** it is board-agnostic — anything with a Bluetooth controller and the observer role (tested on nRF52840DK and RAK4631). All decoding and decryption is shared; only the BLE scanning layer is platform-specific, so other stacks can be added by implementing one more backend.
+Under Arduino it supports **ESP32** (original, S and C series — tested on older ESP32, ESP32-S3 and ESP32-C3), **nRF52840** (Adafruit/Seeed Bluefruit core, e.g. Seeed XIAO nRF52840), and **Arduino MKR WiFi 1010** (through the NINA-W102 co-processor and ArduinoBLE). Under **Zephyr** it is board-agnostic — anything with a Bluetooth controller and the observer role (tested on nRF52840DK and RAK4631). All decoding and decryption is shared; only the BLE scanning layer is platform-specific, so other stacks can be added by implementing one more backend.
 
 ## Features
 
-- ✅ **Multi-Platform**: ESP32 and nRF52840 under Arduino, any Bluetooth board under Zephyr
+- ✅ **Multi-Platform**: ESP32, nRF52840 and MKR WiFi 1010 under Arduino, any Bluetooth board under Zephyr
 - ✅ **No External Dependencies**: Bundled AES-128-CTR — no mbedTLS or crypto library needed
 - ✅ **Multiple Device Support**: Monitor multiple Victron devices simultaneously
 - ✅ **All Device Types**: Solar chargers, battery monitors, inverters, DC-DC converters, AC chargers
@@ -45,8 +45,9 @@ wired). The C core returns those as `NAN`, and time-to-go as
 
 ## Hardware Requirements
 
-- An ESP32 (original / S / C series) **or** an nRF52840 board (Adafruit/Seeed
-  Bluefruit core — e.g. Seeed XIAO nRF52840) for the Arduino API
+- An ESP32 (original / S / C series), an nRF52840 board (Adafruit/Seeed
+  Bluefruit core — e.g. Seeed XIAO nRF52840), or an Arduino MKR WiFi 1010
+  for the Arduino API
 - Or any Zephyr-supported board with a Bluetooth controller (tested on
   nRF52840DK, RAK4631 and Heltec WiFi LoRa 32 V3)
 - Victron devices with BLE "Instant Readout" enabled

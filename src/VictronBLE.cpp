@@ -24,6 +24,8 @@ VictronBLE::VictronBLE()
       scanDuration(5), minIntervalMs(1000), initialized(false)
 #if defined(VICTRON_BACKEND_ESP32)
     , pBLEScan(nullptr), scanCallbackObj(nullptr)
+#elif defined(VICTRON_BACKEND_SAMD_BLE)
+    , scanning(false), lastScanStart(0)
 #endif
 {
     memset(devices, 0, sizeof(devices));
@@ -54,7 +56,7 @@ bool VictronBLE::addDevice(const char* name, const char* mac, const char* hexKey
 
     deviceCount++;
 
-    if (debugEnabled) Serial.printf("[VictronBLE] Added: %s (%s)\n", name, normalizedMAC);
+    if (debugEnabled) VBLE_PRINTF("[VictronBLE] Added: %s (%s)\n", name, normalizedMAC);
     return true;
 }
 
@@ -71,7 +73,7 @@ void VictronBLE::onAdvertisement(const uint8_t* mfgData, size_t len,
 
     DeviceEntry* entry = findDevice(normalizedMAC);
     if (!entry) {
-        if (debugEnabled) Serial.printf("[VictronBLE] Unmonitored Victron: %s\n", normalizedMAC);
+        if (debugEnabled) VBLE_PRINTF("[VictronBLE] Unmonitored Victron: %s\n", normalizedMAC);
         return;
     }
 
@@ -91,12 +93,12 @@ void VictronBLE::onAdvertisement(const uint8_t* mfgData, size_t len,
     victronble_record_t rec;
     victronble_err_t err = victronble_decode(mfgData, len, entry->key, &rec);
     if (err != VICTRONBLE_OK) {
-        if (debugEnabled) Serial.printf("[VictronBLE] Decode %s: %s\n",
+        if (debugEnabled) VBLE_PRINTF("[VictronBLE] Decode %s: %s\n",
                                         entry->device.name, victronble_strerror(err));
         return;
     }
 
-    if (debugEnabled) Serial.printf("[VictronBLE] Processing: %s nonce:0x%04X\n",
+    if (debugEnabled) VBLE_PRINTF("[VictronBLE] Processing: %s nonce:0x%04X\n",
                                      entry->device.name, rec.nonce);
 
     storeRecord(entry, rec);
@@ -121,7 +123,7 @@ void VictronBLE::storeRecord(DeviceEntry* entry, const victronble_record_t& rec)
         s.yieldToday = (uint16_t)rec.u.solar.yield_today_wh;
         s.loadCurrent = nan_to_zero(rec.u.solar.load_current);
         if (debugEnabled) {
-            Serial.printf("[VictronBLE] Solar: %.2fV %.2fA %dW State:%d\n",
+            VBLE_PRINTF("[VictronBLE] Solar: %.2fV %.2fA %dW State:%d\n",
                           s.batteryVoltage, s.batteryCurrent,
                           (int)s.panelPower, s.chargeState);
         }
@@ -143,7 +145,7 @@ void VictronBLE::storeRecord(DeviceEntry* entry, const victronble_record_t& rec)
         b.alarmLowTemperature = (rec.u.batmon.alarm & 0x0010) != 0;
         b.alarmHighTemperature = (rec.u.batmon.alarm & 0x0020) != 0;
         if (debugEnabled) {
-            Serial.printf("[VictronBLE] Battery: %.2fV %.2fA SOC:%.1f%%\n",
+            VBLE_PRINTF("[VictronBLE] Battery: %.2fV %.2fA SOC:%.1f%%\n",
                           b.voltage, b.current, b.soc);
         }
         break;
@@ -160,7 +162,7 @@ void VictronBLE::storeRecord(DeviceEntry* entry, const victronble_record_t& rec)
         inv.alarmHighTemperature = (rec.u.inverter.alarms & 0x04) != 0;
         inv.alarmOverload = (rec.u.inverter.alarms & 0x08) != 0;
         if (debugEnabled) {
-            Serial.printf("[VictronBLE] Inverter: %.2fV %dW State:%d\n",
+            VBLE_PRINTF("[VictronBLE] Inverter: %.2fV %dW State:%d\n",
                           inv.batteryVoltage, (int)inv.acPower, inv.state);
         }
         break;
@@ -174,7 +176,7 @@ void VictronBLE::storeRecord(DeviceEntry* entry, const victronble_record_t& rec)
         d.outputVoltage = rec.u.dcdc.output_voltage;
         d.outputCurrent = rec.u.dcdc.output_current;
         if (debugEnabled) {
-            Serial.printf("[VictronBLE] DC-DC: In=%.2fV Out=%.2fV %.2fA\n",
+            VBLE_PRINTF("[VictronBLE] DC-DC: In=%.2fV Out=%.2fV %.2fA\n",
                           d.inputVoltage, d.outputVoltage, d.outputCurrent);
         }
         break;
@@ -193,7 +195,7 @@ void VictronBLE::storeRecord(DeviceEntry* entry, const victronble_record_t& rec)
         a.temperature = nan_to_zero(rec.u.ac.temperature);
         a.acCurrent = nan_to_zero(rec.u.ac.ac_current);
         if (debugEnabled) {
-            Serial.printf("[VictronBLE] AC Charger: %.2fV %.2fA Temp:%.0fC State:%d\n",
+            VBLE_PRINTF("[VictronBLE] AC Charger: %.2fV %.2fA Temp:%.0fC State:%d\n",
                           a.voltage1, a.current1, a.temperature, a.chargeState);
         }
         break;

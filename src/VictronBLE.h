@@ -29,8 +29,28 @@
 #elif defined(ARDUINO_ARCH_NRF52) || defined(NRF52840_XXAA) || defined(NRF52832_XXAA)
   #include <bluefruit.h>
   #define VICTRON_BACKEND_NRF52 1
+#elif defined(ARDUINO_SAMD_MKRWIFI1010)
+  // The MKR WiFi 1010's SAMD21 has no BLE radio. The u-blox NINA-W102
+  // co-processor is exposed through ArduinoBLE over SPI.
+  #include <ArduinoBLE.h>
+  #define VICTRON_BACKEND_SAMD_BLE 1
 #else
-  #error "VictronBLE: unsupported platform (need ESP32 Arduino or Adafruit/Seeed nRF52 core)"
+  #error "VictronBLE: unsupported platform (need ESP32 Arduino, Adafruit/Seeed nRF52 core, or Arduino MKR WiFi 1010)"
+#endif
+
+#if defined(VICTRON_BACKEND_SAMD_BLE)
+  #include <stdarg.h>
+  inline void vble_debug_printf(const char* fmt, ...) {
+      char buf[160];
+      va_list args;
+      va_start(args, fmt);
+      vsnprintf(buf, sizeof(buf), fmt, args);
+      va_end(args);
+      Serial.print(buf);
+  }
+  #define VBLE_PRINTF(...) vble_debug_printf(__VA_ARGS__)
+#else
+  #define VBLE_PRINTF(...) Serial.printf(__VA_ARGS__)
 #endif
 
 // --- Constants ---
@@ -260,7 +280,7 @@ private:
                          const char* macStr, int8_t rssi);
     void storeRecord(DeviceEntry* entry, const victronble_record_t& rec);
 
-    // --- Platform-specific BLE backend (see src/esp32 and src/nrf52) ---
+    // --- Platform-specific BLE backend (see src/esp32, src/nrf52, src/samd) ---
 #if defined(VICTRON_BACKEND_ESP32)
     friend class VictronBLEAdvertisedDeviceCallbacks;
     BLEScan* pBLEScan;
@@ -269,6 +289,10 @@ private:
 #elif defined(VICTRON_BACKEND_NRF52)
     static VictronBLE* s_instance;
     static void scanCallback(ble_gap_evt_adv_report_t* report);
+#elif defined(VICTRON_BACKEND_SAMD_BLE)
+    bool scanning;
+    uint32_t lastScanStart;
+    void processPeripheral(BLEDevice& peripheral);
 #endif
 };
 

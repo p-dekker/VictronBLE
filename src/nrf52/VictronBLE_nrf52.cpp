@@ -66,7 +66,7 @@ void VictronBLE::scanCallback(ble_gap_evt_adv_report_t* report) {
             }
             if (nameLen > 0) nameBuf[nameLen] = '\0';
 
-            Serial.printf("[VictronBLE] MAC=%-17s  RSSI=%-4d  Name=%-20s  ManData=%s\n",
+            VBLE_PRINTF("[VictronBLE] MAC=%-17s  RSSI=%-4d  Name=%-20s  ManData=%s\n",
                 mac, report->rssi, nameBuf, mfgLen >= 2 ? "yes" : "no");
         }
 
